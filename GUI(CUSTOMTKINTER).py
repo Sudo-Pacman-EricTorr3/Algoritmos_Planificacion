@@ -476,20 +476,34 @@ class VistaPlanificacion(ctk.CTk):
             self.gantt_window.destroy()
 
         self.gantt_window = ctk.CTkToplevel(self)
-        self.gantt_window.title("Diagrama de Gantt")
-        self.gantt_window.geometry("1200x700")
-        self.gantt_window.minsize(980, 560)
+        self.gantt_window.title("Diagrama de Gantt y Prueba de Escritorio")
+        # Hacemos la ventana un poco más ancha para que quepan bien ambas columnas
+        self.gantt_window.geometry("1300x700") 
+        self.gantt_window.minsize(1050, 560)
         self.gantt_window.grab_set()
 
+        # Configuramos la ventana en 2 columnas. 
+        # weight=3 le da el 60% de espacio al Gantt, weight=2 le da el 40% a la caja de texto.
+        self.gantt_window.grid_columnconfigure(0, weight=3) 
+        self.gantt_window.grid_columnconfigure(1, weight=2)
+        self.gantt_window.grid_rowconfigure(0, weight=1)
+
+        # LADO IZQUIERDO: Contenedor del Diagrama
         contenedor = ctk.CTkScrollableFrame(self.gantt_window, corner_radius=12)
-        contenedor.pack(fill="both", expand=True, padx=16, pady=16)
+        contenedor.grid(row=0, column=0, sticky="nsew", padx=(16, 8), pady=16)
         self._dibujar_diagrama_gantt(timeline, contenedor)
 
-        resultado_box = ctk.CTkTextbox(self.gantt_window, height=180, wrap="word")
-        resultado_box.pack(fill="x", padx=16, pady=(0, 16))
+        # LADO DERECHO: Caja de texto con la traza de los algoritmos
+        # Importante: Usamos una fuente Monoespaciada (Consolas, Courier, etc) para alinear el texto de la traza
+        fuente_mono = ctk.CTkFont(family="Consolas", size=13)
+        
+        resultado_box = ctk.CTkTextbox(self.gantt_window, wrap="word", font=fuente_mono, corner_radius=12)
+        resultado_box.grid(row=0, column=1, sticky="nsew", padx=(8, 16), pady=16)
+        
         resultado_box.insert("end", texto_resultado)
         resultado_box.configure(state="disabled")
-        self.gantt_window._resultado_widget = resultado_box
+        
+        self.gantt_window._resultado_widget = resultado_box 
 
     def simular(self):
         procesos = self.leer_procesos()

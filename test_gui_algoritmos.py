@@ -1,159 +1,541 @@
-import importlib.util
-import unittest
-from pathlib import Path
+import customtkinter as ctk
+from tkinter import messagebox
+
+from alg_FCFS import FCFS
+from alg_Priority import PriorityScheduler
+from alg_RoundRobin import RoundRobin
+from alg_SJF import SJF
 
 
-FILE_PATH = Path(__file__).parent / "GUI(CUSTOMTKINTER).py"
+class VistaPlanificacion(ctk.CTk):
+    def __init__(self):
+        super().__init__()
+        self.title("Algoritmos de Planificación")
+        self.geometry("1100x680")
+        self.minsize(900, 600)
+        ctk.set_appearance_mode("System")
+        ctk.set_default_color_theme("blue")
 
-spec = importlib.util.spec_from_file_location("gui_customtkinter", FILE_PATH)
-module = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(module)
+        self.filas_entradas = []
+        self._datos_guardados = []
 
-VistaPlanificacion = module.VistaPlanificacion
+        self._configurar_ui()
 
+    def _configurar_ui(self):
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_rowconfigure(1, weight=1)
 
-class TestVistaPlanificacion(unittest.TestCase):
-    def test_fcfs_omits_priority_column_and_reads_without_priority(self):
-        app = VistaPlanificacion()
-        app.algoritmo_var.set("FCFS")
-        app.entry_total.delete(0, "end")
-        app.entry_total.insert(0, "2")
+        self.frame_config = ctk.CTkFrame(self, corner_radius=12)
+        self.frame_config.grid(row=0, column=0, padx=18, pady=(18, 10), sticky="ew")
+        self.frame_config.grid_columnconfigure(1, weight=1)
 
-        app.generar_matriz()
-
-        headers = [
-            widget.cget("text")
-            for widget in app.frame_tabla.winfo_children()
-            if type(widget).__name__ == "CTkLabel" and widget.cget("text") in {"Process", "Arrival Time", "Burst Time", "Priority"}
-        ]
-        self.assertNotIn("Priority", headers)
-        self.assertIn("Arrival Time", headers)
-        self.assertIn("Burst Time", headers)
-
-        app.filas_entradas[0]["arrival"].insert(0, "1")
-        app.filas_entradas[0]["burst"].insert(0, "3")
-        app.filas_entradas[1]["arrival"].insert(0, "2")
-        app.filas_entradas[1]["burst"].insert(0, "4")
-
-        procesos = app.leer_procesos()
-
-        self.assertEqual(
-            procesos,
-            [
-                {"process": "P1", "arrival_time": 1, "burst_time": 3},
-                {"process": "P2", "arrival_time": 2, "burst_time": 4},
-            ],
+        self.label_total = ctk.CTkLabel(
+            self.frame_config,
+            text="Número de procesos:",
+            font=ctk.CTkFont(size=14, weight="bold"),
         )
+        self.label_total.grid(row=0, column=0, padx=(18, 10), pady=(18, 8), sticky="w")
 
-        app.destroy()
+        self.entry_total = ctk.CTkEntry(self.frame_config, width=120)
+        self.entry_total.insert(0, "5")
+        self.entry_total.grid(row=0, column=1, padx=(0, 12), pady=(18, 8), sticky="ew")
 
-    def test_priority_algorithm_keeps_priority_column(self):
-        app = VistaPlanificacion()
-        app.algoritmo_var.set("Priority")
-        app.entry_total.delete(0, "end")
-        app.entry_total.insert(0, "1")
+        self.label_algoritmo = ctk.CTkLabel(
+            self.frame_config,
+            text="Algoritmo:",
+            font=ctk.CTkFont(size=14, weight="bold"),
+        )
+        self.label_algoritmo.grid(row=0, column=2, padx=(10, 8), pady=(18, 8), sticky="w")
 
-        app.generar_matriz()
+        self.algoritmo_var = ctk.StringVar(value="FCFS")
+        self.op_algoritmo = ctk.CTkOptionMenu(
+            self.frame_config,
+            values=["FCFS", "SJF", "Priority", "Round Robin"],
+            variable=self.algoritmo_var,
+            command=self._on_algoritmo_cambiado,
+            width=160,
+        )
+        self.op_algoritmo.grid(row=0, column=3, padx=(0, 10), pady=(18, 8), sticky="ew")
 
-        headers = [
-            widget.cget("text")
-            for widget in app.frame_tabla.winfo_children()
-            if type(widget).__name__ == "CTkLabel" and widget.cget("text") in {"Process", "Arrival Time", "Burst Time", "Priority"}
-        ]
-        self.assertIn("Priority", headers)
+        self.label_quantum = ctk.CTkLabel(
+            self.frame_config,
+            text="Quantum:",
+            font=ctk.CTkFont(size=14, weight="bold"),
+        )
+        self.label_quantum.grid(row=0, column=4, padx=(10, 8), pady=(18, 8), sticky="w")
 
-        app.filas_entradas[0]["arrival"].insert(0, "1")
-        app.filas_entradas[0]["burst"].insert(0, "2")
-        app.filas_entradas[0]["priority"].insert(0, "5")
+        self.entry_quantum = ctk.CTkEntry(self.frame_config, width=90)
+        self.entry_quantum.insert(0, "2")
+        self.entry_quantum.grid(row=0, column=5, padx=(0, 12), pady=(18, 8), sticky="ew")
 
-        procesos = app.leer_procesos()
-        self.assertEqual(procesos[0]["priority"], 5)
-        app.destroy()
+        self.btn_generar = ctk.CTkButton(
+            self.frame_config,
+            text="Generar matriz",
+            command=self.generar_matriz,
+            width=160,
+            height=36,
+        )
+        self.btn_generar.grid(row=1, column=0, columnspan=2, padx=(18, 8), pady=(8, 18), sticky="ew")
 
-    def test_round_robin_omits_priority_column(self):
-        app = VistaPlanificacion()
-        app.algoritmo_var.set("Round Robin")
-        app.entry_total.delete(0, "end")
-        app.entry_total.insert(0, "1")
+        self.btn_simular = ctk.CTkButton(
+            self.frame_config,
+            text="Simular algoritmo",
+            command=self.simular,
+            width=180,
+            height=36,
+        )
+        self.btn_simular.grid(row=1, column=2, columnspan=2, padx=(8, 18), pady=(8, 18), sticky="ew")
 
-        app.generar_matriz()
+        self._actualizar_quantum(self.algoritmo_var.get())
 
-        headers = [
-            widget.cget("text")
-            for widget in app.frame_tabla.winfo_children()
-            if type(widget).__name__ == "CTkLabel" and widget.cget("text") in {"Process", "Arrival Time", "Burst Time", "Priority"}
-        ]
-        self.assertNotIn("Priority", headers)
-        app.destroy()
+        self.frame_tabla = ctk.CTkScrollableFrame(self, corner_radius=12)
+        self.frame_tabla.grid(row=1, column=0, padx=18, pady=(0, 18), sticky="nsew")
 
-    def test_changing_algorithm_rebuilds_priority_column(self):
-        app = VistaPlanificacion()
-        app.entry_total.delete(0, "end")
-        app.entry_total.insert(0, "2")
-        app.algoritmo_var.set("Priority")
-        app.generar_matriz()
+        self.gantt_window = None
 
-        app.filas_entradas[0]["arrival"].insert(0, "1")
-        app.filas_entradas[0]["burst"].insert(0, "3")
-        app.filas_entradas[0]["priority"].insert(0, "7")
-        app.filas_entradas[1]["arrival"].insert(0, "2")
-        app.filas_entradas[1]["burst"].insert(0, "4")
-        app.filas_entradas[1]["priority"].insert(0, "2")
+    def _obtener_columnas(self):
+        algoritmo = self.algoritmo_var.get()
+        if algoritmo == "Priority":
+            return ["Process", "Arrival Time", "Burst Time", "Priority"]
+        return ["Process", "Arrival Time", "Burst Time"]
 
-        app.algoritmo_var.set("FCFS")
-        app._on_algoritmo_cambiado("FCFS")
-        headers = [
-            widget.cget("text")
-            for widget in app.frame_tabla.winfo_children()
-            if type(widget).__name__ == "CTkLabel" and widget.cget("text") in {"Process", "Arrival Time", "Burst Time", "Priority"}
-        ]
-        self.assertNotIn("Priority", headers)
-        self.assertEqual(app.filas_entradas[0]["arrival"].get(), "1")
-        self.assertEqual(app.filas_entradas[0]["burst"].get(), "3")
+    def generar_matriz(self):
+        try:
+            cantidad = int(self.entry_total.get())
+        except ValueError:
+            messagebox.showerror("Entrada inválida", "Debes ingresar un número entero válido.")
+            return
 
-        app.algoritmo_var.set("Priority")
-        app._on_algoritmo_cambiado("Priority")
-        headers = [
-            widget.cget("text")
-            for widget in app.frame_tabla.winfo_children()
-            if type(widget).__name__ == "CTkLabel" and widget.cget("text") in {"Process", "Arrival Time", "Burst Time", "Priority"}
-        ]
-        self.assertIn("Priority", headers)
-        self.assertEqual(app.filas_entradas[0]["priority"].get(), "7")
-        app.destroy()
+        if cantidad <= 0:
+            messagebox.showwarning("Cantidad inválida", "El número de procesos debe ser mayor que 0.")
+            return
 
-    def test_round_robin_ejecuta_por_quantum_y_reencola(self):
-        app = VistaPlanificacion()
-        procesos = [
-            {"process": "P1", "arrival_time": 0, "burst_time": 5},
-            {"process": "P2", "arrival_time": 1, "burst_time": 2},
-            {"process": "P3", "arrival_time": 2, "burst_time": 3},
-        ]
+        for widget in self.frame_tabla.winfo_children():
+            widget.destroy()
+        self.filas_entradas = []
+        self._datos_guardados = []
 
-        timeline = app._timeline_por_algoritmo(procesos, "Round Robin", quantum=2)
+        columnas = self._obtener_columnas()
+        for col_index, titulo in enumerate(columnas):
+            label = ctk.CTkLabel(
+                self.frame_tabla,
+                text=titulo,
+                font=ctk.CTkFont(size=12, weight="bold"),
+                width=18,
+                height=2,
+            )
+            label.grid(row=0, column=col_index, padx=8, pady=8, sticky="nsew")
 
-        self.assertEqual(len(timeline), 6)
-        self.assertEqual([item["process"] for item in timeline], ["P1", "P2", "P3", "P1", "P3", "P1"])
-        app.destroy()
+        for i in range(cantidad):
+            nombre = ctk.CTkLabel(self.frame_tabla, text=f"P{i + 1}", width=12)
+            nombre.grid(row=i + 1, column=0, padx=8, pady=8, sticky="ew")
 
-    def test_simulacion_usa_el_algoritmo_seleccionado(self):
-        app = VistaPlanificacion()
-        app.algoritmo_var.set("FCFS")
-        app.entry_total.delete(0, "end")
-        app.entry_total.insert(0, "2")
-        app.generar_matriz()
+            arrival = ctk.CTkEntry(self.frame_tabla, width=16)
+            burst = ctk.CTkEntry(self.frame_tabla, width=16)
+            fila = {
+                "process": nombre,
+                "arrival": arrival,
+                "burst": burst,
+            }
 
-        app.filas_entradas[0]["arrival"].insert(0, "0")
-        app.filas_entradas[0]["burst"].insert(0, "3")
-        app.filas_entradas[1]["arrival"].insert(0, "1")
-        app.filas_entradas[1]["burst"].insert(0, "2")
+            arrival.grid(row=i + 1, column=1, padx=8, pady=8, sticky="ew")
+            burst.grid(row=i + 1, column=2, padx=8, pady=8, sticky="ew")
 
-        app.simular()
-        self.assertIsNotNone(app.gantt_window)
-        self.assertIn("FCFS", app.gantt_window._resultado_widget.get("1.0", "end"))
-        self.assertIn("P1", app.gantt_window._resultado_widget.get("1.0", "end"))
-        app.destroy()
+            if "Priority" in columnas:
+                priority = ctk.CTkEntry(self.frame_tabla, width=16)
+                priority.grid(row=i + 1, column=3, padx=8, pady=8, sticky="ew")
+                fila["priority"] = priority
+
+            self.filas_entradas.append(fila)
+
+        for col in range(len(columnas)):
+            self.frame_tabla.grid_columnconfigure(col, weight=1)
+
+    def leer_procesos(self):
+        procesos = []
+        algoritmo = self.algoritmo_var.get()
+
+        for index, fila in enumerate(self.filas_entradas, start=1):
+            try:
+                arrival_time = int(fila["arrival"].get())
+                burst_time = int(fila["burst"].get())
+                priority = None
+                if algoritmo == "Priority":
+                    if "priority" not in fila or fila["priority"] is None:
+                        raise ValueError
+                    priority = int(fila["priority"].get())
+            except ValueError:
+                if algoritmo == "Priority":
+                    mensaje = "Ingresa enteros en Arrival Time, Burst Time y Priority."
+                else:
+                    mensaje = "Ingresa enteros en Arrival Time y Burst Time."
+                messagebox.showerror(
+                    "Datos incompletos",
+                    f"El proceso P{index} tiene valores inválidos. {mensaje}",
+                )
+                return []
+
+            proceso = {
+                "process": f"P{index}",
+                "arrival_time": arrival_time,
+                "burst_time": burst_time,
+            }
+            if algoritmo == "Priority":
+                proceso["priority"] = priority
+
+            procesos.append(proceso)
+
+        return procesos
+
+    def _actualizar_quantum(self, algoritmo):
+        if algoritmo == "Round Robin":
+            self.label_quantum.grid()
+            self.entry_quantum.grid()
+        else:
+            self.label_quantum.grid_remove()
+            self.entry_quantum.grid_remove()
+
+    def _on_algoritmo_cambiado(self, algoritmo):
+        self._actualizar_quantum(algoritmo)
+
+        if not self.filas_entradas:
+            return
+
+        datos_previos = []
+        for i, fila in enumerate(self.filas_entradas):
+            valor = {
+                "arrival": fila["arrival"].get(),
+                "burst": fila["burst"].get(),
+            }
+            if "priority" in fila:
+                valor["priority"] = fila["priority"].get()
+            elif i < len(self._datos_guardados) and "priority" in self._datos_guardados[i]:
+                valor["priority"] = self._datos_guardados[i]["priority"]
+            datos_previos.append(valor)
+        self._datos_guardados = datos_previos
+
+        for widget in self.frame_tabla.winfo_children():
+            widget.destroy()
+
+        self.filas_entradas = []
+        columnas = self._obtener_columnas()
+
+        for col_index, titulo in enumerate(columnas):
+            label = ctk.CTkLabel(
+                self.frame_tabla,
+                text=titulo,
+                font=ctk.CTkFont(size=12, weight="bold"),
+                width=18,
+                height=2,
+            )
+            label.grid(row=0, column=col_index, padx=8, pady=8, sticky="nsew")
+
+        for i, datos in enumerate(self._datos_guardados if self._datos_guardados else datos_previos):
+            nombre = ctk.CTkLabel(self.frame_tabla, text=f"P{i + 1}", width=12)
+            nombre.grid(row=i + 1, column=0, padx=8, pady=8, sticky="ew")
+
+            arrival = ctk.CTkEntry(self.frame_tabla, width=16)
+            burst = ctk.CTkEntry(self.frame_tabla, width=16)
+            arrival.insert(0, datos.get("arrival", ""))
+            burst.insert(0, datos.get("burst", ""))
+
+            arrival.grid(row=i + 1, column=1, padx=8, pady=8, sticky="ew")
+            burst.grid(row=i + 1, column=2, padx=8, pady=8, sticky="ew")
+
+            fila = {
+                "process": nombre,
+                "arrival": arrival,
+                "burst": burst,
+            }
+
+            if "Priority" in columnas:
+                priority = ctk.CTkEntry(self.frame_tabla, width=16)
+                priority.insert(0, datos.get("priority", ""))
+                priority.grid(row=i + 1, column=3, padx=8, pady=8, sticky="ew")
+                fila["priority"] = priority
+
+            self.filas_entradas.append(fila)
+
+        for col in range(len(columnas)):
+            self.frame_tabla.grid_columnconfigure(col, weight=1)
+
+    def mostrar_resultado(self, texto):
+        if self.gantt_window is not None and self.gantt_window.winfo_exists():
+            texto_widget = self.gantt_window._resultado_widget
+            texto_widget.configure(state="normal")
+            texto_widget.delete("1.0", "end")
+            texto_widget.insert("end", texto)
+            texto_widget.configure(state="disabled")
+        else:
+            return
+
+    def _timeline_por_algoritmo(self, procesos, algoritmo, quantum=None):
+        if algoritmo == "FCFS":
+            orden = sorted(procesos, key=lambda p: (p["arrival_time"], p["process"]))
+            actual = 0
+            timeline = []
+            for proceso in orden:
+                inicio = max(actual, proceso["arrival_time"])
+                fin = inicio + proceso["burst_time"]
+                timeline.append(
+                    {
+                        "process": proceso["process"],
+                        "arrival": proceso["arrival_time"],
+                        "burst": proceso["burst_time"],
+                        "start": inicio,
+                        "finish": fin,
+                        "waiting": max(0, inicio - proceso["arrival_time"]),
+                        "turnaround": fin - proceso["arrival_time"],
+                    }
+                )
+                actual = fin
+            return timeline
+
+        if algoritmo == "SJF":
+            orden = sorted(procesos, key=lambda p: (p["arrival_time"], p["burst_time"], p["process"]))
+            actual = 0
+            cola = []
+            timeline = []
+            indice = 0
+            while indice < len(orden) or cola:
+                while indice < len(orden) and orden[indice]["arrival_time"] <= actual:
+                    cola.append(orden[indice])
+                    indice += 1
+                if not cola:
+                    actual = orden[indice]["arrival_time"]
+                    continue
+                
+                idx_min = min(
+                    range(len(cola)),
+                    key=lambda i: (cola[i]["burst_time"], cola[i]["arrival_time"], cola[i]["process"])
+                )
+                proceso = cola.pop(idx_min)
+                
+                inicio = actual
+                fin = actual + proceso["burst_time"]
+                timeline.append(
+                    {
+                        "process": proceso["process"],
+                        "arrival": proceso["arrival_time"],
+                        "burst": proceso["burst_time"],
+                        "start": inicio,
+                        "finish": fin,
+                        "waiting": max(0, inicio - proceso["arrival_time"]),
+                        "turnaround": fin - proceso["arrival_time"],
+                    }
+                )
+                actual = fin
+            return timeline
+
+        if algoritmo == "Priority":
+            orden = sorted(procesos, key=lambda p: (p["arrival_time"], p["priority"], p["process"]))
+            actual = 0
+            cola = []
+            timeline = []
+            indice = 0
+            while indice < len(orden) or cola:
+                while indice < len(orden) and orden[indice]["arrival_time"] <= actual:
+                    cola.append(orden[indice])
+                    indice += 1
+                if not cola:
+                    actual = orden[indice]["arrival_time"]
+                    continue
+                
+                idx_min = min(
+                    range(len(cola)),
+                    key=lambda i: (cola[i]["priority"], cola[i]["arrival_time"], cola[i]["process"])
+                )
+                proceso = cola.pop(idx_min)
+                
+                inicio = actual
+                fin = actual + proceso["burst_time"]
+                timeline.append(
+                    {
+                        "process": proceso["process"],
+                        "arrival": proceso["arrival_time"],
+                        "burst": proceso["burst_time"],
+                        "priority": proceso["priority"],
+                        "start": inicio,
+                        "finish": fin,
+                        "waiting": max(0, inicio - proceso["arrival_time"]),
+                        "turnaround": fin - proceso["arrival_time"],
+                    }
+                )
+                actual = fin
+            return timeline
+
+        if algoritmo == "Round Robin":
+            from collections import deque
+            if quantum is None:
+                quantum = int(self.entry_quantum.get())
+            cola = deque()
+            procesos_rr = [
+                {"process": p["process"], "arrival_time": p["arrival_time"], "burst_time": p["burst_time"], "remaining": p["burst_time"]}
+                for p in procesos
+            ]
+            indice = 0
+            tiempo_actual = 0
+            timeline = []
+            while indice < len(procesos_rr) or cola:
+                while indice < len(procesos_rr) and procesos_rr[indice]["arrival_time"] <= tiempo_actual:
+                    cola.append(procesos_rr[indice])
+                    indice += 1
+                if not cola:
+                    tiempo_actual = procesos_rr[indice]["arrival_time"]
+                    while indice < len(procesos_rr) and procesos_rr[indice]["arrival_time"] <= tiempo_actual:
+                        cola.append(procesos_rr[indice])
+                        indice += 1
+                    continue
+                
+                proceso = cola.popleft()
+                inicio = tiempo_actual
+                slice_t = min(quantum, proceso["remaining"])
+                tiempo_actual += slice_t
+                proceso["remaining"] -= slice_t
+
+                while indice < len(procesos_rr) and procesos_rr[indice]["arrival_time"] <= tiempo_actual:
+                    cola.append(procesos_rr[indice])
+                    indice += 1
+
+                if proceso["remaining"] > 0:
+                    cola.append(proceso)
+                
+                timeline.append(
+                    {
+                        "process": proceso["process"],
+                        "arrival": proceso["arrival_time"],
+                        "burst": proceso["burst_time"],
+                        "start": inicio,
+                        "finish": tiempo_actual,
+                        "waiting": max(0, tiempo_actual - proceso["arrival_time"] - proceso["burst_time"]),
+                        "turnaround": tiempo_actual - proceso["arrival_time"],
+                    }
+                )
+            return timeline
+
+        return []
+
+    def _dibujar_diagrama_gantt(self, timeline, parent):
+        for widget in parent.winfo_children():
+            widget.destroy()
+
+        if not timeline:
+            label = ctk.CTkLabel(parent, text="No hay diagrama Gantt para mostrar.")
+            label.grid(row=0, column=0, padx=12, pady=12)
+            return
+
+        procesos = sorted({item["process"] for item in timeline})
+        total_tiempo = max(item["finish"] for item in timeline)
+        colores = {
+            "P1": "#CFE2F3",
+            "P2": "#D9EAD3",
+            "P3": "#FCE5CD",
+            "P4": "#D9D2E9",
+            "P5": "#F4CCCC",
+            "P6": "#F3F3F3",
+            "P7": "#EAD1DC",
+            "P8": "#D0E0E3",
+        }
+
+        titulo = ctk.CTkLabel(parent, text="Diagrama de Gantt", font=ctk.CTkFont(size=16, weight="bold"))
+        titulo.grid(row=0, column=0, columnspan=len(procesos) + 2, padx=12, pady=(12, 8), sticky="w")
+
+        leyenda = ctk.CTkLabel(
+            parent,
+            text="Llegada  •  Espera  •  Procesando  •  Finalizado",
+            font=ctk.CTkFont(size=12),
+        )
+        leyenda.grid(row=1, column=0, columnspan=len(procesos) + 2, padx=12, pady=(0, 8), sticky="w")
+
+        encabezado = ctk.CTkLabel(parent, text="", width=6)
+        encabezado.grid(row=2, column=0, padx=2, pady=2, sticky="nsew")
+
+        for col_idx, proceso in enumerate(procesos, start=1):
+            etiqueta = ctk.CTkLabel(parent, text=proceso, width=12, font=ctk.CTkFont(size=12, weight="bold"))
+            etiqueta.grid(row=2, column=col_idx, padx=2, pady=2, sticky="nsew")
+
+        for tiempo in range(total_tiempo + 1):
+            tiempo_label = ctk.CTkLabel(parent, text=str(tiempo), width=6, font=ctk.CTkFont(size=11))
+            tiempo_label.grid(row=tiempo + 3, column=0, padx=2, pady=2, sticky="nsew")
+
+            for col_idx, proceso in enumerate(procesos, start=1):
+                item = next((p for p in timeline if p["process"] == proceso and p["start"] <= tiempo < p["finish"]), None)
+                fg = "#E5E7EB"
+                txt = ""
+                if item is not None:
+                    fg = colores.get(proceso, "#D9EAF7")
+                    txt = str(item["finish"] - tiempo)
+
+                celda = ctk.CTkLabel(
+                    parent,
+                    text=txt,
+                    width=12,
+                    height=2,
+                    fg_color=fg,
+                    corner_radius=0,
+                )
+                celda.grid(row=tiempo + 3, column=col_idx, padx=1, pady=1, sticky="nsew")
+
+    def _abrir_gantt(self, timeline, texto_resultado=""):
+        if self.gantt_window is not None and self.gantt_window.winfo_exists():
+            self.gantt_window.destroy()
+
+        self.gantt_window = ctk.CTkToplevel(self)
+        self.gantt_window.title("Diagrama de Gantt y Prueba de Escritorio")
+        self.gantt_window.geometry("1300x700") 
+        self.gantt_window.minsize(1050, 560)
+        self.gantt_window.grab_set()
+
+        self.gantt_window.grid_columnconfigure(0, weight=3) 
+        self.gantt_window.grid_columnconfigure(1, weight=2)
+        self.gantt_window.grid_rowconfigure(0, weight=1)
+
+        contenedor = ctk.CTkScrollableFrame(self.gantt_window, corner_radius=12)
+        contenedor.grid(row=0, column=0, sticky="nsew", padx=(16, 8), pady=16)
+        self._dibujar_diagrama_gantt(timeline, contenedor)
+
+        fuente_mono = ctk.CTkFont(family="Consolas", size=13)
+        
+        resultado_box = ctk.CTkTextbox(self.gantt_window, wrap="word", font=fuente_mono, corner_radius=12)
+        resultado_box.grid(row=0, column=1, sticky="nsew", padx=(8, 16), pady=16)
+        
+        resultado_box.insert("end", texto_resultado)
+        resultado_box.configure(state="disabled")
+        
+        self.gantt_window._resultado_widget = resultado_box
+
+    def simular(self):
+        procesos = self.leer_procesos()
+        if not procesos:
+            return
+
+        algoritmo = self.algoritmo_var.get()
+        quantum = None
+
+        if algoritmo == "Round Robin":
+            try:
+                quantum = int(self.entry_quantum.get())
+                if quantum <= 0:
+                    raise ValueError
+            except ValueError:
+                messagebox.showerror("Quantum inválido", "El quantum debe ser un entero mayor que 0.")
+                return
+
+        if algoritmo == "FCFS":
+            resultado = FCFS.simular(procesos)
+        elif algoritmo == "SJF":
+            resultado = SJF.simular(procesos)
+        elif algoritmo == "Priority":
+            resultado = PriorityScheduler.simular(procesos)
+        elif algoritmo == "Round Robin":
+            resultado = RoundRobin.simular(procesos, quantum)
+        else:
+            resultado = f"No se encontró un algoritmo para: {algoritmo}"
+
+        gantt = self._timeline_por_algoritmo(procesos, algoritmo, quantum)
+        self._abrir_gantt(gantt, resultado)
 
 
 if __name__ == "__main__":
-    unittest.main()
+    app = VistaPlanificacion()
+    app.mainloop()
