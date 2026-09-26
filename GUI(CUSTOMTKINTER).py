@@ -414,7 +414,7 @@ class VistaPlanificacion(ctk.CTk):
 
         return []
 
-    def _dibujar_diagrama_gantt(self, timeline, parent):
+   def _dibujar_diagrama_gantt(self, timeline, parent):
         for widget in parent.winfo_children():
             widget.destroy()
 
@@ -426,14 +426,8 @@ class VistaPlanificacion(ctk.CTk):
         procesos = sorted({item["process"] for item in timeline})
         total_tiempo = max(item["finish"] for item in timeline)
         colores = {
-            "P1": "#CFE2F3",
-            "P2": "#D9EAD3",
-            "P3": "#FCE5CD",
-            "P4": "#D9D2E9",
-            "P5": "#F4CCCC",
-            "P6": "#F3F3F3",
-            "P7": "#EAD1DC",
-            "P8": "#D0E0E3",
+            "P1": "#CFE2F3", "P2": "#D9EAD3", "P3": "#FCE5CD", "P4": "#D9D2E9",
+            "P5": "#F4CCCC", "P6": "#F3F3F3", "P7": "#EAD1DC", "P8": "#D0E0E3",
         }
 
         titulo = ctk.CTkLabel(parent, text="Diagrama de Gantt", font=ctk.CTkFont(size=16, weight="bold"))
@@ -474,25 +468,8 @@ class VistaPlanificacion(ctk.CTk):
                     corner_radius=0,
                 )
                 celda.grid(row=tiempo + 3, column=col_idx, padx=1, pady=1, sticky="nsew")
-
-        resumen = ctk.CTkFrame(parent, corner_radius=10)
-        resumen.grid(row=total_tiempo + 5, column=0, columnspan=len(procesos) + 1, padx=12, pady=(16, 12), sticky="ew")
-
-        resumen_titulo = ctk.CTkLabel(resumen, text="Resumen de estados", font=ctk.CTkFont(size=14, weight="bold"))
-        resumen_titulo.grid(row=0, column=0, padx=12, pady=(10, 8), sticky="w")
-
-        for idx, item in enumerate(timeline):
-            estado = ctk.CTkLabel(
-                resumen,
-                text=(
-                    f"{item['process']}: Llegada={item['arrival']} | "
-                    f"Espera={item['waiting']} | "
-                    f"Procesando={item['start']}-{item['finish']} | "
-                    f"Finalizado={item['finish']}"
-                ),
-                anchor="w",
-            )
-            estado.grid(row=idx + 1, column=0, padx=12, pady=4, sticky="ew")
+        
+        # Aquí eliminamos todo el bloque de código que dibujaba el "resumen = ctk.CTkFrame..."
 
     def _abrir_gantt(self, timeline, texto_resultado=""):
         if self.gantt_window is not None and self.gantt_window.winfo_exists():
