@@ -27,6 +27,7 @@ class RoundRobin:
             }
             for p in procesos
         ]
+        procesos_rr.sort(key=lambda proceso: (proceso["arrival_time"], proceso["process"]))
 
         cola = deque()
         indice = 0

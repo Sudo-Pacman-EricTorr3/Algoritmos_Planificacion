@@ -6,6 +6,13 @@ from alg_Priority import PriorityScheduler
 from alg_RoundRobin import RoundRobin
 from alg_SJF import SJF
 
+MAX_PROCESOS = 15
+MAX_TIEMPO_LLEGADA = 20
+MAX_RAFAGA = 10
+MAX_PRIORIDAD = 10
+MAX_QUANTUM = 10
+MAX_DURACION_DIAGRAMA = 170
+
 
 class VistaPlanificacion(ctk.CTk):
     def __init__(self):
@@ -59,7 +66,7 @@ class VistaPlanificacion(ctk.CTk):
 
         self.label_quantum = ctk.CTkLabel(
             self.frame_config,
-            text="Quantum:",
+            text="Quantum (1-10):",
             font=ctk.CTkFont(size=14, weight="bold"),
         )
         self.label_quantum.grid(row=0, column=4, padx=(10, 8), pady=(18, 8), sticky="w")
@@ -96,8 +103,8 @@ class VistaPlanificacion(ctk.CTk):
     def _obtener_columnas(self):
         algoritmo = self.algoritmo_var.get()
         if algoritmo == "Priority":
-            return ["Process", "Arrival Time", "Burst Time", "Priority"]
-        return ["Process", "Arrival Time", "Burst Time"]
+            return ["Process", "Arrival Time (0-20)", "Burst Time (1-10)", "Priority (1-10)"]
+        return ["Process", "Arrival Time (0-20)", "Burst Time (1-10)"]
 
     def _validar_cantidad_procesos(self):
         try:
@@ -110,10 +117,10 @@ class VistaPlanificacion(ctk.CTk):
             messagebox.showwarning("Cantidad inválida", "El número de procesos debe ser mayor que 0.")
             return None
 
-        if cantidad > 15:
+        if cantidad > MAX_PROCESOS:
             messagebox.showwarning(
                 "Límite de procesos",
-                "El máximo permitido es 15 procesos. No se generará la matriz ni se ejecutará la simulación.",
+            f"El máximo permitido es {MAX_PROCESOS} procesos. No se generará la matriz ni se ejecutará la simulación.",
             )
             return None
 
@@ -157,7 +164,7 @@ class VistaPlanificacion(ctk.CTk):
             arrival.grid(row=i + 1, column=1, padx=8, pady=8, sticky="ew")
             burst.grid(row=i + 1, column=2, padx=8, pady=8, sticky="ew")
 
-            if "Priority" in columnas:
+            if self.algoritmo_var.get() == "Priority":
                 priority = ctk.CTkEntry(self.frame_tabla, width=16)
                 priority.grid(row=i + 1, column=3, padx=8, pady=8, sticky="ew")
                 fila["priority"] = priority
@@ -182,12 +189,26 @@ class VistaPlanificacion(ctk.CTk):
                     priority = int(fila["priority"].get())
             except ValueError:
                 if algoritmo == "Priority":
-                    mensaje = "Ingresa enteros en Arrival Time, Burst Time y Priority."
+                    mensaje = "Ingresa enteros válidos en Arrival Time, Burst Time y Priority."
                 else:
-                    mensaje = "Ingresa enteros en Arrival Time y Burst Time."
+                    mensaje = "Ingresa enteros válidos en Arrival Time y Burst Time."
                 messagebox.showerror(
                     "Datos incompletos",
                     f"El proceso P{index} tiene valores inválidos. {mensaje}",
+                )
+                return []
+
+            if not 0 <= arrival_time <= MAX_TIEMPO_LLEGADA or not 1 <= burst_time <= MAX_RAFAGA:
+                messagebox.showerror(
+                    "Valor fuera de rango",
+                    f"P{index}: Arrival Time debe estar entre 0 y {MAX_TIEMPO_LLEGADA}, y Burst Time entre 1 y {MAX_RAFAGA}.",
+                )
+                return []
+
+            if algoritmo == "Priority" and not 1 <= priority <= MAX_PRIORIDAD:
+                messagebox.showerror(
+                    "Prioridad fuera de rango",
+                    f"P{index}: Priority debe estar entre 1 y {MAX_PRIORIDAD}.",
                 )
                 return []
 
@@ -264,7 +285,7 @@ class VistaPlanificacion(ctk.CTk):
                 "burst": burst,
             }
 
-            if "Priority" in columnas:
+            if self.algoritmo_var.get() == "Priority":
                 priority = ctk.CTkEntry(self.frame_tabla, width=16)
                 priority.insert(0, datos.get("priority", ""))
                 priority.grid(row=i + 1, column=3, padx=8, pady=8, sticky="ew")
@@ -379,6 +400,7 @@ class VistaPlanificacion(ctk.CTk):
                 {"process": p["process"], "arrival_time": p["arrival_time"], "burst_time": p["burst_time"], "remaining": p["burst_time"]}
                 for p in procesos
             ]
+            procesos_rr.sort(key=lambda proceso: (proceso["arrival_time"], proceso["process"]))
             indice = 0
             tiempo_actual = 0
             timeline = []
@@ -430,6 +452,37 @@ class VistaPlanificacion(ctk.CTk):
 
         return []
 
+    @staticmethod
+    def _estado_proceso_en_tiempo(datos_proceso, tiempo):
+        llegada = datos_proceso["arrival"]
+        rafaga = datos_proceso["burst"]
+        segmentos = datos_proceso["segments"]
+
+        if tiempo < llegada:
+            return None, None
+        if tiempo == llegada:
+            return "arrival", rafaga
+
+        finalizacion = max(segmento["finish"] for segmento in segmentos)
+        if tiempo > finalizacion:
+            return None, None
+        if tiempo == finalizacion:
+            return "finished", 0
+
+        ejecutado = sum(
+            max(0, min(tiempo, segmento["finish"]) - segmento["start"])
+            for segmento in segmentos
+        )
+        restante = max(0, rafaga - ejecutado)
+        en_ejecucion = any(
+            segmento["start"] < tiempo <= segmento["finish"]
+            for segmento in segmentos
+        )
+
+        if en_ejecucion:
+            return "running", restante
+        return "waiting", restante
+
     def _dibujar_diagrama_gantt(self, timeline, parent):
         for widget in parent.winfo_children():
             widget.destroy()
@@ -439,22 +492,39 @@ class VistaPlanificacion(ctk.CTk):
             label.grid(row=0, column=0, padx=12, pady=12)
             return
 
-        procesos = sorted({item["process"] for item in timeline})
+        procesos = sorted({item["process"] for item in timeline}, key=lambda proceso: int(proceso[1:]))
         total_tiempo = max(item["finish"] for item in timeline)
-        colores = {
-            "P1": "#CFE2F3", "P2": "#D9EAD3", "P3": "#FCE5CD", "P4": "#D9D2E9",
-            "P5": "#F4CCCC", "P6": "#F3F3F3", "P7": "#EAD1DC", "P8": "#D0E0E3",
+        colores_estado = {
+            "arrival": "#D9EAF7",
+            "waiting": "#FFF2CC",
+            "running": "#D9EAD3",
+            "finished": "#EAD5DF",
         }
+        datos_por_proceso = {}
+        for segmento in timeline:
+            proceso = segmento["process"]
+            if proceso not in datos_por_proceso:
+                datos_por_proceso[proceso] = {
+                    "arrival": segmento["arrival"],
+                    "burst": segmento["burst"],
+                    "segments": [],
+                }
+            datos_por_proceso[proceso]["segments"].append(segmento)
 
         titulo = ctk.CTkLabel(parent, text="Diagrama de Gantt", font=ctk.CTkFont(size=16, weight="bold"))
         titulo.grid(row=0, column=0, columnspan=len(procesos) + 2, padx=12, pady=(12, 8), sticky="w")
 
-        leyenda = ctk.CTkLabel(
-            parent,
-            text="Llegada  •  Espera  •  Procesando  •  Finalizado",
-            font=ctk.CTkFont(size=12),
-        )
-        leyenda.grid(row=1, column=0, columnspan=len(procesos) + 2, padx=12, pady=(0, 8), sticky="w")
+        for indice, (estado, texto) in enumerate(
+            [("arrival", "Llegada"), ("waiting", "Espera"), ("running", "En proceso"), ("finished", "Finalizado")]
+        ):
+            leyenda = ctk.CTkLabel(
+                parent,
+                text=texto,
+                fg_color=colores_estado[estado],
+                text_color="#000000",
+                corner_radius=4,
+            )
+            leyenda.grid(row=1, column=indice, padx=4, pady=(0, 8), sticky="w")
 
         encabezado = ctk.CTkLabel(parent, text="", width=6)
         encabezado.grid(row=2, column=0, padx=2, pady=2, sticky="nsew")
@@ -468,12 +538,9 @@ class VistaPlanificacion(ctk.CTk):
             tiempo_label.grid(row=tiempo + 3, column=0, padx=2, pady=2, sticky="nsew")
 
             for col_idx, proceso in enumerate(procesos, start=1):
-                item = next((p for p in timeline if p["process"] == proceso and p["start"] <= tiempo < p["finish"]), None)
-                fg = "#E5E7EB"
-                txt = ""
-                if item is not None:
-                    fg = colores.get(proceso, "#D9EAF7")
-                    txt = str(item["finish"] - tiempo)
+                estado, restante = self._estado_proceso_en_tiempo(datos_por_proceso[proceso], tiempo)
+                fg = colores_estado.get(estado, "#FFFFFF")
+                txt = "" if restante is None else str(restante)
 
                 celda = ctk.CTkLabel(
                     parent,
@@ -481,6 +548,7 @@ class VistaPlanificacion(ctk.CTk):
                     width=12,
                     height=2,
                     fg_color=fg,
+                    text_color="#000000",
                     corner_radius=0,
                 )
                 celda.grid(row=tiempo + 3, column=col_idx, padx=1, pady=1, sticky="nsew")
@@ -535,11 +603,22 @@ class VistaPlanificacion(ctk.CTk):
         if algoritmo == "Round Robin":
             try:
                 quantum = int(self.entry_quantum.get())
-                if quantum <= 0:
+                if not 1 <= quantum <= MAX_QUANTUM:
                     raise ValueError
             except ValueError:
-                messagebox.showerror("Quantum inválido", "El quantum debe ser un entero mayor que 0.")
+                messagebox.showerror(
+                    "Quantum inválido",
+                    f"El quantum debe ser un entero entre 1 y {MAX_QUANTUM}.",
+                )
                 return
+
+        gantt = self._timeline_por_algoritmo(procesos, algoritmo, quantum)
+        if gantt and max(item["finish"] for item in gantt) > MAX_DURACION_DIAGRAMA:
+            messagebox.showwarning(
+                "Diagrama demasiado largo",
+                f"La duración total no puede superar {MAX_DURACION_DIAGRAMA} unidades de tiempo.",
+            )
+            return
 
         if algoritmo == "FCFS":
             resultado = FCFS.simular(procesos)
@@ -552,7 +631,6 @@ class VistaPlanificacion(ctk.CTk):
         else:
             resultado = f"No se encontró un algoritmo para: {algoritmo}"
 
-        gantt = self._timeline_por_algoritmo(procesos, algoritmo, quantum)
         self._abrir_gantt(gantt, resultado)
 
 
