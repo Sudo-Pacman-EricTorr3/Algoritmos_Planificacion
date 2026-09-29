@@ -8,7 +8,7 @@ from alg_SJF import SJF
 
 MAX_PROCESOS = 15
 MAX_TIEMPO_LLEGADA = 20
-MAX_RAFAGA = 10
+MAX_RAFAGA = 20
 MAX_PRIORIDAD = 10
 MAX_QUANTUM = 10
 MAX_DURACION_DIAGRAMA = 170
@@ -103,8 +103,8 @@ class VistaPlanificacion(ctk.CTk):
     def _obtener_columnas(self):
         algoritmo = self.algoritmo_var.get()
         if algoritmo == "Priority":
-            return ["Process", "Arrival Time (0-20)", "Burst Time (1-10)", "Priority (1-10)"]
-        return ["Process", "Arrival Time (0-20)", "Burst Time (1-10)"]
+            return ["Process", "Arrival Time (0-20)", "Burst Time (1-20)", "Priority (1-10)"]
+        return ["Process", "Arrival Time (0-20)", "Burst Time (1-20)"]
 
     def _validar_cantidad_procesos(self):
         try:
