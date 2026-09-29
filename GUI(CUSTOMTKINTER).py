@@ -99,16 +99,32 @@ class VistaPlanificacion(ctk.CTk):
             return ["Process", "Arrival Time", "Burst Time", "Priority"]
         return ["Process", "Arrival Time", "Burst Time"]
 
-    def generar_matriz(self):
+    def _validar_cantidad_procesos(self):
         try:
             cantidad = int(self.entry_total.get())
         except ValueError:
             messagebox.showerror("Entrada inválida", "Debes ingresar un número entero válido.")
-            return
+            return None
 
         if cantidad <= 0:
             messagebox.showwarning("Cantidad inválida", "El número de procesos debe ser mayor que 0.")
+            return None
+
+        if cantidad > 15:
+            messagebox.showwarning(
+                "Límite de procesos",
+                "El máximo permitido es 15 procesos. No se generará la matriz ni se ejecutará la simulación.",
+            )
+            return None
+
+        return cantidad
+
+    def generar_matriz(self):
+        cantidad = self._validar_cantidad_procesos()
+        if cantidad is None:
             return
+
+       
 
         for widget in self.frame_tabla.winfo_children():
             widget.destroy()
@@ -414,7 +430,7 @@ class VistaPlanificacion(ctk.CTk):
 
         return []
 
-   def _dibujar_diagrama_gantt(self, timeline, parent):
+    def _dibujar_diagrama_gantt(self, timeline, parent):
         for widget in parent.winfo_children():
             widget.destroy()
 
@@ -506,6 +522,9 @@ class VistaPlanificacion(ctk.CTk):
         self.gantt_window._resultado_widget = resultado_box 
 
     def simular(self):
+        if self._validar_cantidad_procesos() is None:
+            return
+
         procesos = self.leer_procesos()
         if not procesos:
             return
