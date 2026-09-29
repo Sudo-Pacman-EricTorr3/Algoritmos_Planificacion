@@ -52,10 +52,14 @@ class RoundRobin:
                     indice += 1
                 continue
 
-            # 3. Sacar proceso de la cola y ejecutar por el quantum
+            # 3. Sacar proceso de la cola y ejecutar
             proceso = cola.popleft()
             inicio = tiempo_actual
-            quantum_aplicado = min(quantum, proceso["remaining"])
+            
+            # --- MODIFICACIÓN NO APROPIATIVA ---
+            # Ignoramos el quantum y forzamos a que consuma toda su ráfaga restante de un golpe
+            quantum_aplicado = proceso["remaining"] 
+            
             tiempo_actual += quantum_aplicado
             proceso["remaining"] -= quantum_aplicado
             
@@ -95,8 +99,8 @@ class RoundRobin:
         orden_texto = " -> ".join(orden_ejecucion)
 
         resumen = [
-            "Algoritmo: Round Robin (Apropiativo)",
-            f"Quantum: {quantum}",
+            "Algoritmo: Round Robin (Modificado a No Apropiativo)",
+            f"Quantum: {quantum} (Ignorado por restricción No Apropiativa)",
             f"Orden: {orden_texto}",
             "-" * 60
         ]
