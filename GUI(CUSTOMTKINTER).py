@@ -597,6 +597,15 @@ class VistaPlanificacion(ctk.CTk):
         titulo = ctk.CTkLabel(parent, text="Tabla de estados", font=ctk.CTkFont(size=16, weight="bold"))
         titulo.grid(row=0, column=0, columnspan=len(procesos) + 2, padx=12, pady=(12, 8), sticky="w")
 
+        parent.grid_columnconfigure(0, weight=0, minsize=48)
+        for col_idx in range(1, len(procesos) + 1):
+            parent.grid_columnconfigure(
+                col_idx,
+                weight=1,
+                uniform="columnas_proceso",
+                minsize=44,
+            )
+
         for indice, (estado, texto) in enumerate(
             [("arrival", "Llegada"), ("waiting", "Espera"), ("running", "En proceso"), ("finished", "Finalizado")]
         ):
@@ -617,8 +626,15 @@ class VistaPlanificacion(ctk.CTk):
             etiqueta.grid(row=2, column=col_idx, padx=2, pady=2, sticky="nsew")
 
         for tiempo in range(total_tiempo + 1):
+            fila_tiempo = tiempo + 3
+            parent.grid_rowconfigure(
+                fila_tiempo,
+                weight=1,
+                uniform="filas_tiempo",
+                minsize=30,
+            )
             tiempo_label = ctk.CTkLabel(parent, text=str(tiempo), width=6, font=ctk.CTkFont(size=11))
-            tiempo_label.grid(row=tiempo + 3, column=0, padx=2, pady=2, sticky="nsew")
+            tiempo_label.grid(row=fila_tiempo, column=0, padx=2, pady=2, sticky="nsew")
 
             for col_idx, proceso in enumerate(procesos, start=1):
                 estado, restante = self._estado_proceso_en_tiempo(datos_por_proceso[proceso], tiempo)
@@ -634,7 +650,7 @@ class VistaPlanificacion(ctk.CTk):
                     text_color="#000000",
                     corner_radius=0,
                 )
-                celda.grid(row=tiempo + 3, column=col_idx, padx=1, pady=1, sticky="nsew")
+                celda.grid(row=fila_tiempo, column=col_idx, padx=1, pady=1, sticky="nsew")
         
         # Aquí eliminamos todo el bloque de código que dibujaba el "resumen = ctk.CTkFrame..."
 
