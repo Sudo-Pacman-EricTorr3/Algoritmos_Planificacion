@@ -57,7 +57,6 @@ class FCFS:
 
         # --- SECCIÓN: TRAZA PASO A PASO (A PAPEL) ---
         resumen.append("\n" + "=" * 60)
-        resumen.append("TRAZA PASO A PASO (Prueba de Escritorio)")
         resumen.append("=" * 60)
         
         tiempo_maximo = max(item["finish"] for item in orden_ejecucion) if orden_ejecucion else 0

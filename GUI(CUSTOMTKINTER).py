@@ -1,5 +1,5 @@
 import customtkinter as ctk
-from tkinter import messagebox
+from tkinter import Canvas, messagebox
 
 from alg_FCFS import FCFS
 from alg_Priority import PriorityScheduler
@@ -483,6 +483,89 @@ class VistaPlanificacion(ctk.CTk):
             return "running", restante
         return "waiting", restante
 
+    def _dibujar_gantt_horizontal(self, timeline, parent):
+        total_tiempo = max(item["finish"] for item in timeline)
+        ancho_unidad = 44
+        margen_izquierdo = 48
+        alto_canvas = 122
+        colores_proceso = [
+            "#B9D7EA", "#F7DFA4", "#C5E1C5", "#E8C1CE", "#CFC6E8",
+            "#F4C7A1", "#BFE3E0", "#E7D6A5", "#C7D4F0", "#D8C8B7",
+            "#BFD8C2", "#EBC4B5", "#C4D6D2", "#E3CBE8", "#D6D6A8",
+        ]
+        color_por_proceso = {
+            proceso: colores_proceso[indice % len(colores_proceso)]
+            for indice, proceso in enumerate(
+                sorted({item["process"] for item in timeline}, key=lambda nombre: int(nombre[1:]))
+            )
+        }
+
+        titulo = ctk.CTkLabel(
+            parent,
+            text="Diagrama de Gantt · intervalos de ejecución",
+            font=ctk.CTkFont(size=16, weight="bold"),
+        )
+        titulo.grid(row=0, column=0, sticky="w", padx=4, pady=(0, 4))
+
+        lienzo = Canvas(parent, height=alto_canvas, background="#FFFFFF", highlightthickness=0)
+        lienzo.grid(row=1, column=0, sticky="ew")
+        barra = ctk.CTkScrollbar(parent, orientation="horizontal", command=lienzo.xview)
+        barra.grid(row=2, column=0, sticky="ew")
+        lienzo.configure(xscrollcommand=barra.set)
+
+        def dibujar(evento=None):
+            ancho_total = margen_izquierdo + total_tiempo * ancho_unidad + 24
+            lienzo.configure(scrollregion=(0, 0, ancho_total, alto_canvas))
+            lienzo.delete("all")
+            lienzo.create_text(
+                8,
+                56,
+                text="CPU",
+                anchor="w",
+                fill="#202020",
+                font=("Segoe UI", 10, "bold"),
+            )
+
+            limites = {0, total_tiempo}
+            cursor = 0
+            for segmento in sorted(timeline, key=lambda item: (item["start"], item["finish"])):
+                inicio = segmento["start"]
+                fin = segmento["finish"]
+                if inicio > cursor:
+                    x1 = margen_izquierdo + cursor * ancho_unidad
+                    x2 = margen_izquierdo + inicio * ancho_unidad
+                    lienzo.create_rectangle(x1, 37, x2, 75, fill="#E5E7EB", outline="#444444")
+                    lienzo.create_text((x1 + x2) / 2, 56, text="Inactivo", fill="#202020", font=("Segoe UI", 9))
+
+                x1 = margen_izquierdo + inicio * ancho_unidad
+                x2 = margen_izquierdo + fin * ancho_unidad
+                lienzo.create_rectangle(
+                    x1,
+                    37,
+                    x2,
+                    75,
+                    fill=color_por_proceso[segmento["process"]],
+                    outline="#444444",
+                    width=1,
+                )
+                lienzo.create_text(
+                    (x1 + x2) / 2,
+                    56,
+                    text=segmento["process"],
+                    fill="#111111",
+                    font=("Segoe UI", 10, "bold"),
+                )
+                limites.update((inicio, fin))
+                cursor = fin
+
+            for tiempo in sorted(limites):
+                x = margen_izquierdo + tiempo * ancho_unidad
+                lienzo.create_line(x, 75, x, 88, fill="#333333")
+                lienzo.create_text(x, 103, text=str(tiempo), fill="#111111", font=("Segoe UI", 9))
+
+        lienzo.bind("<Configure>", dibujar)
+        dibujar()
+
     def _dibujar_diagrama_gantt(self, timeline, parent):
         for widget in parent.winfo_children():
             widget.destroy()
@@ -511,7 +594,7 @@ class VistaPlanificacion(ctk.CTk):
                 }
             datos_por_proceso[proceso]["segments"].append(segmento)
 
-        titulo = ctk.CTkLabel(parent, text="Diagrama de Gantt", font=ctk.CTkFont(size=16, weight="bold"))
+        titulo = ctk.CTkLabel(parent, text="Tabla de estados", font=ctk.CTkFont(size=16, weight="bold"))
         titulo.grid(row=0, column=0, columnspan=len(procesos) + 2, padx=12, pady=(12, 8), sticky="w")
 
         for indice, (estado, texto) in enumerate(
@@ -561,29 +644,26 @@ class VistaPlanificacion(ctk.CTk):
 
         self.gantt_window = ctk.CTkToplevel(self)
         self.gantt_window.title("Diagrama de Gantt y Prueba de Escritorio")
-        # Hacemos la ventana un poco más ancha para que quepan bien ambas columnas
-        self.gantt_window.geometry("1300x700") 
+        self.gantt_window.geometry("1300x700")
         self.gantt_window.minsize(1050, 560)
         self.gantt_window.grab_set()
 
-        # Configuramos la ventana en 2 columnas. 
-        # weight=3 le da el 60% de espacio al Gantt, weight=2 le da el 40% a la caja de texto.
-        self.gantt_window.grid_columnconfigure(0, weight=3) 
+        self.gantt_window.grid_columnconfigure(0, weight=3)
         self.gantt_window.grid_columnconfigure(1, weight=2)
-        self.gantt_window.grid_rowconfigure(0, weight=1)
+        self.gantt_window.grid_rowconfigure(1, weight=1)
 
-        # LADO IZQUIERDO: Contenedor del Diagrama
+        contenedor_gantt = ctk.CTkFrame(self.gantt_window, fg_color="transparent")
+        contenedor_gantt.grid(row=0, column=0, columnspan=2, sticky="ew", padx=16, pady=(14, 6))
+        contenedor_gantt.grid_columnconfigure(0, weight=1)
+        self._dibujar_gantt_horizontal(timeline, contenedor_gantt)
+
         contenedor = ctk.CTkScrollableFrame(self.gantt_window, corner_radius=12)
-        contenedor.grid(row=0, column=0, sticky="nsew", padx=(16, 8), pady=16)
+        contenedor.grid(row=1, column=0, sticky="nsew", padx=(16, 8), pady=(6, 16))
         self._dibujar_diagrama_gantt(timeline, contenedor)
 
-        # LADO DERECHO: Caja de texto con la traza de los algoritmos
-        # Importante: Usamos una fuente Monoespaciada (Consolas, Courier, etc) para alinear el texto de la traza
         fuente_mono = ctk.CTkFont(family="Consolas", size=13)
-        
         resultado_box = ctk.CTkTextbox(self.gantt_window, wrap="word", font=fuente_mono, corner_radius=12)
-        resultado_box.grid(row=0, column=1, sticky="nsew", padx=(8, 16), pady=16)
-        
+        resultado_box.grid(row=1, column=1, sticky="nsew", padx=(8, 16), pady=(6, 16))
         resultado_box.insert("end", texto_resultado)
         resultado_box.configure(state="disabled")
         
