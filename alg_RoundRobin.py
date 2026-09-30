@@ -34,6 +34,7 @@ class RoundRobin:
         tiempo_actual = 0
         orden_ejecucion = []
         resultados = []
+        estados_por_tiempo = {}
         
         # Lista extra para guardar los bloques exactos de ejecución
         intervalos_ejecucion = []
@@ -58,6 +59,22 @@ class RoundRobin:
             quantum_aplicado = min(quantum, proceso["remaining"])
             tiempo_actual += quantum_aplicado
             proceso["remaining"] -= quantum_aplicado
+
+            for tiempo in range(inicio, tiempo_actual):
+                cola_en_tiempo = [
+                    {"process": esperando["process"], "remaining": esperando["remaining"]}
+                    for esperando in cola
+                ]
+                for pendiente in procesos_rr[indice:]:
+                    if pendiente["arrival_time"] <= tiempo:
+                        cola_en_tiempo.append(
+                            {"process": pendiente["process"], "remaining": pendiente["remaining"]}
+                        )
+                estados_por_tiempo[tiempo] = {
+                    "process": proceso["process"],
+                    "remaining": proceso["remaining"] + quantum_aplicado - (tiempo - inicio),
+                    "queue": cola_en_tiempo,
+                }
             
             orden_ejecucion.append(proceso["process"])
             
@@ -117,27 +134,14 @@ class RoundRobin:
         
         for t in range(tiempo_maximo):
             ejecutando_str = "[Inactivo]"
-            ejecutando_proc = None
-            
-            for item in intervalos_ejecucion:
-                if item["start"] <= t < item["finish"]:
-                    ejecutando_proc = item["process"]
-                    restante = item["initial_remaining"] - (t - item["start"])
-                    ejecutando_str = f"{ejecutando_proc} (restan {restante})"
-                    break
-            
+            estado = estados_por_tiempo.get(t)
             esperando_list = []
-            for p_orig in procesos_orig:
-                if p_orig["arrival_time"] <= t:
-                    tiempo_ejecutado = 0
-                    for inter in intervalos_ejecucion:
-                        if inter["process"] == p_orig["process"] and inter["start"] <= t:
-                            tiempo_ejecutado += min(t, inter["finish"]) - inter["start"]
-                    
-                    restante = p_orig["burst_time"] - tiempo_ejecutado
-                    
-                    if restante > 0 and p_orig["process"] != ejecutando_proc:
-                        esperando_list.append(f"{p_orig['process']} (restan {restante})")
+            if estado is not None:
+                ejecutando_str = f"{estado['process']} (restan {estado['remaining']})"
+                esperando_list = [
+                    f"{proceso_cola['process']} (restan {proceso_cola['remaining']})"
+                    for proceso_cola in estado["queue"]
+                ]
             
             esperando_str = ", ".join(esperando_list) if esperando_list else "(Ninguno)"
             resumen.append(f"T={t:02d} | Ejecutando: {ejecutando_str:<18} | En cola: {esperando_str}")

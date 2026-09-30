@@ -18,8 +18,8 @@ class VistaPlanificacion(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.title("Algoritmos de Planificación")
-        self.geometry("1100x680")
-        self.minsize(900, 600)
+        self.geometry("1400x900")
+        self.minsize(1000, 700)
         ctk.set_appearance_mode("System")
         ctk.set_default_color_theme("blue")
 
@@ -29,16 +29,17 @@ class VistaPlanificacion(ctk.CTk):
         self._configurar_ui()
 
     def _configurar_ui(self):
-        self.grid_columnconfigure(0, weight=1)
-        self.grid_rowconfigure(1, weight=1)
+        self.grid_columnconfigure(0, weight=0)
+        self.grid_columnconfigure(1, weight=1)
+        self.grid_rowconfigure(2, weight=1)
 
         self.frame_config = ctk.CTkFrame(self, corner_radius=12)
-        self.frame_config.grid(row=0, column=0, padx=18, pady=(18, 10), sticky="ew")
+        self.frame_config.grid(row=0, column=0, columnspan=2, padx=18, pady=(18, 10), sticky="ew")
         self.frame_config.grid_columnconfigure(1, weight=1)
 
         self.label_total = ctk.CTkLabel(
             self.frame_config,
-            text="Número de procesos:",
+            text="Número de procesos (MAX 15 PROCESOS):",
             font=ctk.CTkFont(size=14, weight="bold"),
         )
         self.label_total.grid(row=0, column=0, padx=(18, 10), pady=(18, 8), sticky="w")
@@ -95,10 +96,28 @@ class VistaPlanificacion(ctk.CTk):
 
         self._actualizar_quantum(self.algoritmo_var.get())
 
-        self.frame_tabla = ctk.CTkScrollableFrame(self, corner_radius=12)
-        self.frame_tabla.grid(row=1, column=0, padx=18, pady=(0, 18), sticky="nsew")
+        self.frame_tabla = ctk.CTkScrollableFrame(self, corner_radius=12, width=540, height=210)
+        self.frame_tabla.grid(row=1, column=0, padx=18, pady=(0, 8), sticky="nw")
 
-        self.gantt_window = None
+        self.frame_gantt = ctk.CTkFrame(self, corner_radius=12)
+        self.frame_gantt.grid(row=1, column=1, padx=(0, 18), pady=(0, 8), sticky="nsew")
+        self.frame_gantt.grid_columnconfigure(0, weight=1)
+        ctk.CTkLabel(
+            self.frame_gantt,
+            text="El diagrama de Gantt aparecerá aquí.",
+            font=ctk.CTkFont(size=14),
+        ).grid(row=0, column=0, padx=16, pady=16, sticky="nw")
+
+        self.frame_resultados = ctk.CTkFrame(self, corner_radius=12)
+        self.frame_resultados.grid(row=2, column=0, columnspan=2, padx=18, pady=(0, 18), sticky="nsew")
+        self.frame_resultados.grid_columnconfigure(0, weight=1)
+        self.frame_resultados.grid_rowconfigure(0, weight=1)
+        self._resultado_widget = None
+        ctk.CTkLabel(
+            self.frame_resultados,
+            text="La tabla de estados y el resumen aparecerán aquí.",
+            font=ctk.CTkFont(size=14),
+        ).grid(row=0, column=0, padx=16, pady=16, sticky="nw")
 
     def _obtener_columnas(self):
         algoritmo = self.algoritmo_var.get()
@@ -139,6 +158,7 @@ class VistaPlanificacion(ctk.CTk):
         self._datos_guardados = []
 
         columnas = self._obtener_columnas()
+        self.frame_tabla.configure(width=720 if self.algoritmo_var.get() == "Priority" else 540)
         for col_index, titulo in enumerate(columnas):
             label = ctk.CTkLabel(
                 self.frame_tabla,
@@ -147,32 +167,33 @@ class VistaPlanificacion(ctk.CTk):
                 width=18,
                 height=2,
             )
-            label.grid(row=0, column=col_index, padx=8, pady=8, sticky="nsew")
+            label.grid(row=0, column=col_index, padx=8, pady=4, sticky="nsew")
 
         for i in range(cantidad):
-            nombre = ctk.CTkLabel(self.frame_tabla, text=f"P{i + 1}", width=12)
-            nombre.grid(row=i + 1, column=0, padx=8, pady=8, sticky="ew")
+            nombre = ctk.CTkLabel(self.frame_tabla, text=f"P{i + 1}", width=12, height=26)
+            nombre.grid(row=i + 1, column=0, padx=8, pady=3, sticky="ew")
 
-            arrival = ctk.CTkEntry(self.frame_tabla, width=16)
-            burst = ctk.CTkEntry(self.frame_tabla, width=16)
+            arrival = ctk.CTkEntry(self.frame_tabla, width=120, height=28)
+            burst = ctk.CTkEntry(self.frame_tabla, width=120, height=28)
             fila = {
                 "process": nombre,
                 "arrival": arrival,
                 "burst": burst,
             }
 
-            arrival.grid(row=i + 1, column=1, padx=8, pady=8, sticky="ew")
-            burst.grid(row=i + 1, column=2, padx=8, pady=8, sticky="ew")
+            arrival.grid(row=i + 1, column=1, padx=8, pady=3, sticky="ew")
+            burst.grid(row=i + 1, column=2, padx=8, pady=3, sticky="ew")
 
             if self.algoritmo_var.get() == "Priority":
-                priority = ctk.CTkEntry(self.frame_tabla, width=16)
-                priority.grid(row=i + 1, column=3, padx=8, pady=8, sticky="ew")
+                priority = ctk.CTkEntry(self.frame_tabla, width=120, height=28)
+                priority.grid(row=i + 1, column=3, padx=8, pady=3, sticky="ew")
                 fila["priority"] = priority
 
             self.filas_entradas.append(fila)
 
-        for col in range(len(columnas)):
-            self.frame_tabla.grid_columnconfigure(col, weight=1)
+        self.frame_tabla.grid_columnconfigure(0, weight=0, minsize=80)
+        for col in range(1, len(columnas)):
+            self.frame_tabla.grid_columnconfigure(col, weight=0, minsize=180)
 
     def leer_procesos(self):
         procesos = []
@@ -256,6 +277,7 @@ class VistaPlanificacion(ctk.CTk):
 
         self.filas_entradas = []
         columnas = self._obtener_columnas()
+        self.frame_tabla.configure(width=720 if self.algoritmo_var.get() == "Priority" else 540)
 
         for col_index, titulo in enumerate(columnas):
             label = ctk.CTkLabel(
@@ -265,19 +287,19 @@ class VistaPlanificacion(ctk.CTk):
                 width=18,
                 height=2,
             )
-            label.grid(row=0, column=col_index, padx=8, pady=8, sticky="nsew")
+            label.grid(row=0, column=col_index, padx=8, pady=4, sticky="nsew")
 
         for i, datos in enumerate(self._datos_guardados if self._datos_guardados else datos_previos):
-            nombre = ctk.CTkLabel(self.frame_tabla, text=f"P{i + 1}", width=12)
-            nombre.grid(row=i + 1, column=0, padx=8, pady=8, sticky="ew")
+            nombre = ctk.CTkLabel(self.frame_tabla, text=f"P{i + 1}", width=12, height=26)
+            nombre.grid(row=i + 1, column=0, padx=8, pady=3, sticky="ew")
 
-            arrival = ctk.CTkEntry(self.frame_tabla, width=16)
-            burst = ctk.CTkEntry(self.frame_tabla, width=16)
+            arrival = ctk.CTkEntry(self.frame_tabla, width=120, height=28)
+            burst = ctk.CTkEntry(self.frame_tabla, width=120, height=28)
             arrival.insert(0, datos.get("arrival", ""))
             burst.insert(0, datos.get("burst", ""))
 
-            arrival.grid(row=i + 1, column=1, padx=8, pady=8, sticky="ew")
-            burst.grid(row=i + 1, column=2, padx=8, pady=8, sticky="ew")
+            arrival.grid(row=i + 1, column=1, padx=8, pady=3, sticky="ew")
+            burst.grid(row=i + 1, column=2, padx=8, pady=3, sticky="ew")
 
             fila = {
                 "process": nombre,
@@ -286,25 +308,24 @@ class VistaPlanificacion(ctk.CTk):
             }
 
             if self.algoritmo_var.get() == "Priority":
-                priority = ctk.CTkEntry(self.frame_tabla, width=16)
+                priority = ctk.CTkEntry(self.frame_tabla, width=120, height=28)
                 priority.insert(0, datos.get("priority", ""))
-                priority.grid(row=i + 1, column=3, padx=8, pady=8, sticky="ew")
+                priority.grid(row=i + 1, column=3, padx=8, pady=3, sticky="ew")
                 fila["priority"] = priority
 
             self.filas_entradas.append(fila)
 
-        for col in range(len(columnas)):
-            self.frame_tabla.grid_columnconfigure(col, weight=1)
+        self.frame_tabla.grid_columnconfigure(0, weight=0, minsize=80)
+        for col in range(1, len(columnas)):
+            self.frame_tabla.grid_columnconfigure(col, weight=0, minsize=180)
 
     def mostrar_resultado(self, texto):
-        if self.gantt_window is not None and self.gantt_window.winfo_exists():
-            texto_widget = self.gantt_window._resultado_widget
-            texto_widget.configure(state="normal")
-            texto_widget.delete("1.0", "end")
-            texto_widget.insert("end", texto)
-            texto_widget.configure(state="disabled")
-        else:
+        if self._resultado_widget is None or not self._resultado_widget.winfo_exists():
             return
+        self._resultado_widget.configure(state="normal")
+        self._resultado_widget.delete("1.0", "end")
+        self._resultado_widget.insert("end", texto)
+        self._resultado_widget.configure(state="disabled")
 
     def _timeline_por_algoritmo(self, procesos, algoritmo, quantum=None):
         if algoritmo == "FCFS":
@@ -594,7 +615,7 @@ class VistaPlanificacion(ctk.CTk):
                 }
             datos_por_proceso[proceso]["segments"].append(segmento)
 
-        titulo = ctk.CTkLabel(parent, text="Tabla de estados", font=ctk.CTkFont(size=16, weight="bold"))
+        titulo = ctk.CTkLabel(parent, text="Tabla de estados", font=ctk.CTkFont(size=14, weight="bold"))
         titulo.grid(row=0, column=0, columnspan=len(procesos) + 2, padx=12, pady=(12, 8), sticky="w")
 
         parent.grid_columnconfigure(0, weight=0, minsize=48)
@@ -622,7 +643,7 @@ class VistaPlanificacion(ctk.CTk):
         encabezado.grid(row=2, column=0, padx=2, pady=2, sticky="nsew")
 
         for col_idx, proceso in enumerate(procesos, start=1):
-            etiqueta = ctk.CTkLabel(parent, text=proceso, width=12, font=ctk.CTkFont(size=12, weight="bold"))
+            etiqueta = ctk.CTkLabel(parent, text=proceso, width=12, font=ctk.CTkFont(size=11, weight="bold"))
             etiqueta.grid(row=2, column=col_idx, padx=2, pady=2, sticky="nsew")
 
         for tiempo in range(total_tiempo + 1):
@@ -631,9 +652,9 @@ class VistaPlanificacion(ctk.CTk):
                 fila_tiempo,
                 weight=1,
                 uniform="filas_tiempo",
-                minsize=30,
+                minsize=26,
             )
-            tiempo_label = ctk.CTkLabel(parent, text=str(tiempo), width=6, font=ctk.CTkFont(size=11))
+            tiempo_label = ctk.CTkLabel(parent, text=str(tiempo), width=6, font=ctk.CTkFont(size=10))
             tiempo_label.grid(row=fila_tiempo, column=0, padx=2, pady=2, sticky="nsew")
 
             for col_idx, proceso in enumerate(procesos, start=1):
@@ -654,36 +675,29 @@ class VistaPlanificacion(ctk.CTk):
         
         # Aquí eliminamos todo el bloque de código que dibujaba el "resumen = ctk.CTkFrame..."
 
-    def _abrir_gantt(self, timeline, texto_resultado=""):
-        if self.gantt_window is not None and self.gantt_window.winfo_exists():
-            self.gantt_window.destroy()
+    def _mostrar_gantt(self, timeline, texto_resultado=""):
+        for widget in self.frame_gantt.winfo_children():
+            widget.destroy()
+        for widget in self.frame_resultados.winfo_children():
+            widget.destroy()
 
-        self.gantt_window = ctk.CTkToplevel(self)
-        self.gantt_window.title("Diagrama de Gantt y Prueba de Escritorio")
-        self.gantt_window.geometry("1300x700")
-        self.gantt_window.minsize(1050, 560)
-        self.gantt_window.grab_set()
+        self.frame_gantt.grid_columnconfigure(0, weight=1)
+        self.frame_resultados.grid_columnconfigure(0, weight=3)
+        self.frame_resultados.grid_columnconfigure(1, weight=2)
+        self.frame_resultados.grid_rowconfigure(0, weight=1)
 
-        self.gantt_window.grid_columnconfigure(0, weight=3)
-        self.gantt_window.grid_columnconfigure(1, weight=2)
-        self.gantt_window.grid_rowconfigure(1, weight=1)
+        self._dibujar_gantt_horizontal(timeline, self.frame_gantt)
 
-        contenedor_gantt = ctk.CTkFrame(self.gantt_window, fg_color="transparent")
-        contenedor_gantt.grid(row=0, column=0, columnspan=2, sticky="ew", padx=16, pady=(14, 6))
-        contenedor_gantt.grid_columnconfigure(0, weight=1)
-        self._dibujar_gantt_horizontal(timeline, contenedor_gantt)
-
-        contenedor = ctk.CTkScrollableFrame(self.gantt_window, corner_radius=12)
-        contenedor.grid(row=1, column=0, sticky="nsew", padx=(16, 8), pady=(6, 16))
-        self._dibujar_diagrama_gantt(timeline, contenedor)
+        tabla_estados = ctk.CTkScrollableFrame(self.frame_resultados, corner_radius=8)
+        tabla_estados.grid(row=0, column=0, sticky="nsew", padx=(12, 6), pady=12)
+        self._dibujar_diagrama_gantt(timeline, tabla_estados)
 
         fuente_mono = ctk.CTkFont(family="Consolas", size=13)
-        resultado_box = ctk.CTkTextbox(self.gantt_window, wrap="word", font=fuente_mono, corner_radius=12)
-        resultado_box.grid(row=1, column=1, sticky="nsew", padx=(8, 16), pady=(6, 16))
+        resultado_box = ctk.CTkTextbox(self.frame_resultados, wrap="none", font=fuente_mono, corner_radius=8)
+        resultado_box.grid(row=0, column=1, sticky="nsew", padx=(6, 12), pady=12)
         resultado_box.insert("end", texto_resultado)
         resultado_box.configure(state="disabled")
-        
-        self.gantt_window._resultado_widget = resultado_box 
+        self._resultado_widget = resultado_box
 
     def simular(self):
         if self._validar_cantidad_procesos() is None:
@@ -715,7 +729,6 @@ class VistaPlanificacion(ctk.CTk):
                 f"La duración total no puede superar {MAX_DURACION_DIAGRAMA} unidades de tiempo.",
             )
             return
-
         if algoritmo == "FCFS":
             resultado = FCFS.simular(procesos)
         elif algoritmo == "SJF":
@@ -727,7 +740,7 @@ class VistaPlanificacion(ctk.CTk):
         else:
             resultado = f"No se encontró un algoritmo para: {algoritmo}"
 
-        self._abrir_gantt(gantt, resultado)
+        self._mostrar_gantt(gantt, resultado)
 
 
 if __name__ == "__main__":
