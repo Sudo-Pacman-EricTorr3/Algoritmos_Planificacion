@@ -35,7 +35,7 @@ class RoundRobin:
         orden_ejecucion = []
         resultados = []
         
-        # Lista extra para guardar los bloques exactos de ejecución (nos servirá para la traza)
+        # Lista extra para guardar los bloques exactos de ejecución
         intervalos_ejecucion = []
 
         while indice < len(procesos_rr) or cola:
@@ -52,14 +52,10 @@ class RoundRobin:
                     indice += 1
                 continue
 
-            # 3. Sacar proceso de la cola y ejecutar
+            # 3. Sacar proceso de la cola y ejecutar por el quantum
             proceso = cola.popleft()
             inicio = tiempo_actual
-            
-            # --- MODIFICACIÓN NO APROPIATIVA ---
-            # Ignoramos el quantum y forzamos a que consuma toda su ráfaga restante de un golpe
-            quantum_aplicado = proceso["remaining"] 
-            
+            quantum_aplicado = min(quantum, proceso["remaining"])
             tiempo_actual += quantum_aplicado
             proceso["remaining"] -= quantum_aplicado
             
@@ -70,7 +66,7 @@ class RoundRobin:
                 "process": proceso["process"],
                 "start": inicio,
                 "finish": tiempo_actual,
-                "initial_remaining": proceso["remaining"] + quantum_aplicado # Lo que tenía justo antes de entrar
+                "initial_remaining": proceso["remaining"] + quantum_aplicado
             })
 
             # 4. Verificar si llegaron nuevos procesos MIENTRAS se ejecutaba el actual
@@ -99,8 +95,8 @@ class RoundRobin:
         orden_texto = " -> ".join(orden_ejecucion)
 
         resumen = [
-            "Algoritmo: Round Robin (Modificado a No Apropiativo)",
-            f"Quantum: {quantum} (Ignorado por restricción No Apropiativa)",
+            "Algoritmo: Round Robin (Apropiativo)",
+            f"Quantum: {quantum}",
             f"Orden: {orden_texto}",
             "-" * 60
         ]
@@ -113,7 +109,7 @@ class RoundRobin:
         resumen.append(f"Tiempo promedio de espera: {total_espera / len(resultados):.2f}")
         resumen.append(f"Tiempo promedio de retorno: {total_retorno / len(resultados):.2f}")
 
-        # --- SECCIÓN: TRAZA PASO A PASO (A PAPEL) ---
+        # --- SECCIÓN: TRAZA PASO A PASO ---
         resumen.append("\n" + "=" * 60)
         resumen.append("=" * 60)
         
@@ -123,7 +119,6 @@ class RoundRobin:
             ejecutando_str = "[Inactivo]"
             ejecutando_proc = None
             
-            # Buscar quién se ejecuta en el instante t
             for item in intervalos_ejecucion:
                 if item["start"] <= t < item["finish"]:
                     ejecutando_proc = item["process"]
@@ -131,13 +126,9 @@ class RoundRobin:
                     ejecutando_str = f"{ejecutando_proc} (restan {restante})"
                     break
             
-            # Buscar quiénes están en cola
             esperando_list = []
             for p_orig in procesos_orig:
-                # Si el proceso ya llegó en este instante de tiempo
                 if p_orig["arrival_time"] <= t:
-                    
-                    # Calculamos cuánto se ha ejecutado ANTES de este instante 't'
                     tiempo_ejecutado = 0
                     for inter in intervalos_ejecucion:
                         if inter["process"] == p_orig["process"] and inter["start"] <= t:
@@ -145,7 +136,6 @@ class RoundRobin:
                     
                     restante = p_orig["burst_time"] - tiempo_ejecutado
                     
-                    # Si aún le queda ráfaga y NO es el proceso que está corriendo ahora mismo
                     if restante > 0 and p_orig["process"] != ejecutando_proc:
                         esperando_list.append(f"{p_orig['process']} (restan {restante})")
             
