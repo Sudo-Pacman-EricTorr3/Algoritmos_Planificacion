@@ -35,7 +35,7 @@ class VistaPlanificacion(ctk.CTk):
 
         self.frame_config = ctk.CTkFrame(self, corner_radius=12)
         self.frame_config.grid(row=0, column=0, columnspan=2, padx=18, pady=(18, 10), sticky="ew")
-        self.frame_config.grid_columnconfigure(1, weight=1)
+        self.frame_config.grid_columnconfigure(1, weight=0)
 
         self.label_total = ctk.CTkLabel(
             self.frame_config,
@@ -44,9 +44,9 @@ class VistaPlanificacion(ctk.CTk):
         )
         self.label_total.grid(row=0, column=0, padx=(18, 10), pady=(18, 8), sticky="w")
 
-        self.entry_total = ctk.CTkEntry(self.frame_config, width=120)
+        self.entry_total = ctk.CTkEntry(self.frame_config, width=76, height=30)
         self.entry_total.insert(0, "5")
-        self.entry_total.grid(row=0, column=1, padx=(0, 12), pady=(18, 8), sticky="ew")
+        self.entry_total.grid(row=0, column=1, padx=(0, 12), pady=(18, 8), sticky="w")
 
         self.label_algoritmo = ctk.CTkLabel(
             self.frame_config,
@@ -76,23 +76,37 @@ class VistaPlanificacion(ctk.CTk):
         self.entry_quantum.insert(0, "2")
         self.entry_quantum.grid(row=0, column=5, padx=(0, 12), pady=(18, 8), sticky="ew")
 
+        self.frame_acciones_procesos = ctk.CTkFrame(self.frame_config, fg_color="transparent")
+        self.frame_acciones_procesos.grid(row=1, column=0, columnspan=2, padx=(18, 0), pady=(4, 14), sticky="w")
+
         self.btn_generar = ctk.CTkButton(
-            self.frame_config,
+            self.frame_acciones_procesos,
             text="Generar matriz",
             command=self.generar_matriz,
-            width=160,
-            height=36,
+            width=132,
+            height=32,
         )
-        self.btn_generar.grid(row=1, column=0, columnspan=2, padx=(18, 8), pady=(8, 18), sticky="ew")
+        self.btn_generar.grid(row=0, column=0, padx=(0, 6), sticky="w")
+
+        self.btn_limpiar = ctk.CTkButton(
+            self.frame_acciones_procesos,
+            text="Limpiar",
+            command=self.limpiar,
+            width=88,
+            height=32,
+            fg_color="#6B7280",
+            hover_color="#4B5563",
+        )
+        self.btn_limpiar.grid(row=0, column=1, sticky="w")
 
         self.btn_simular = ctk.CTkButton(
             self.frame_config,
             text="Simular algoritmo",
             command=self.simular,
             width=180,
-            height=36,
+            height=32,
         )
-        self.btn_simular.grid(row=1, column=2, columnspan=2, padx=(8, 18), pady=(8, 18), sticky="ew")
+        self.btn_simular.grid(row=1, column=2, columnspan=2, padx=(8, 18), pady=(4, 14), sticky="w")
 
         self._actualizar_quantum(self.algoritmo_var.get())
 
@@ -194,6 +208,29 @@ class VistaPlanificacion(ctk.CTk):
         self.frame_tabla.grid_columnconfigure(0, weight=0, minsize=80)
         for col in range(1, len(columnas)):
             self.frame_tabla.grid_columnconfigure(col, weight=0, minsize=180)
+
+    def limpiar(self):
+        self.entry_total.delete(0, "end")
+        self.entry_quantum.delete(0, "end")
+        self.filas_entradas.clear()
+        self._datos_guardados.clear()
+
+        for contenedor in (self.frame_tabla, self.frame_gantt, self.frame_resultados):
+            for widget in contenedor.winfo_children():
+                widget.destroy()
+
+        self.frame_tabla.configure(width=540)
+        ctk.CTkLabel(
+            self.frame_gantt,
+            text="El diagrama de Gantt aparecerá aquí.",
+            font=ctk.CTkFont(size=14),
+        ).grid(row=0, column=0, padx=16, pady=16, sticky="nw")
+        ctk.CTkLabel(
+            self.frame_resultados,
+            text="La tabla de estados y el resumen aparecerán aquí.",
+            font=ctk.CTkFont(size=14),
+        ).grid(row=0, column=0, padx=16, pady=16, sticky="nw")
+        self._resultado_widget = None
 
     def leer_procesos(self):
         procesos = []
