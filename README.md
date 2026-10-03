@@ -1,6 +1,6 @@
 Aqui podras entender como es que funciona el programa
 
-Entiendo: quieres poder explicar el recorrido real del código, no solo la teoría de cada algoritmo, incluyendo cómo los resultados alimentan la tabla, el Gantt y las fórmulas. Voy a seguir ese flujo en `main.py` y contrastarlo con las funciones `simular` de cada algoritmo para explicarte qué datos se calculan, cuándo y dónde se muestran.
+ explicacion de el recorrido real del código, no solo la teoría de cada algoritmo, incluyendo cómo los resultados alimentan la tabla, el Gantt y las fórmulas. Voy a seguir ese flujo en `main.py` y contrastarlo con las funciones `simular` de cada algoritmo para explicarte qué datos se calculan, cuándo y dónde se muestran.
 
 Read , lines 250 to 620
 
@@ -10,7 +10,7 @@ Read
 
 Read 
 
-Sí, ahora vamos a seguir **lo que hace el programa de verdad**, desde que escribes los datos hasta que aparecen los resultados. La idea clave es que el programa hace dos cosas relacionadas, pero separadas: calcula una línea de tiempo para dibujar la interfaz y también genera un resumen de texto con los tiempos.
+lo que hace el programa de verdad, desde que se escribe los datos hasta que aparecen los resultados. La idea clave es que el programa hace dos cosas relacionadas, pero separadas: calcula una línea de tiempo para dibujar la interfaz y también genera un resumen de texto con los tiempos.
 
 ## 1. De la tabla de entrada a los procesos
 
