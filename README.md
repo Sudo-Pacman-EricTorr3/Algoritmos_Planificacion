@@ -1,5 +1,48 @@
 Aqui podras entender como es que funciona el programa
 
+
+“Este programa simula cómo el procesador decide qué proceso ejecutar. Para cada proceso usamos su tiempo de llegada —cuándo está listo— y su ráfaga —cuánto tiempo de CPU necesita—. Según el algoritmo, se decide quién entra primero al procesador y cuánto tiempo permanece allí.”
+
+FCFS
+“FCFS significa First Come, First Served: primero en llegar, primero en ser atendido. El programa ordena los procesos por llegada y ejecuta cada uno hasta terminarlo. Si el procesador queda libre antes de que llegue el siguiente, avanza el reloj hasta esa llegada.”
+
+Es no apropiativo: una vez que un proceso empieza, no se interrumpe. Si dos llegan al mismo tiempo, el programa desempata por el nombre del proceso. Está implementado en alg_FCFS.py.
+
+SJF
+“SJF significa Shortest Job First: primero se ejecuta el proceso más corto. Cada vez que el procesador queda libre, el programa considera los procesos que ya llegaron y elige el que tenga la ráfaga menor. No elige procesos que todavía no han llegado.”
+
+También es no apropiativo: el proceso elegido termina antes de que se vuelva a decidir. En caso de empate, se desempata por llegada y luego por nombre. Está en alg_SJF.py.
+
+Prioridad
+“En este algoritmo, cada proceso tiene un número de prioridad. Cuando el procesador queda libre, se elige el proceso disponible con mayor prioridad.”
+
+En esta implementación, el número más pequeño representa mayor prioridad: por ejemplo, prioridad 1 se ejecuta antes que prioridad 5. Si hay empate, se desempata por llegada y luego por nombre. Es no apropiativo: si un proceso empieza, termina antes de elegir otro. Está en alg_Priority.py.
+
+Round Robin
+“Round Robin organiza los procesos en una cola y les da turnos. Cada proceso puede usar el procesador como máximo durante el quantum, que es la duración del turno. Si termina antes, sale de la cola; si no termina, vuelve al final y espera otro turno. Así se reparte el procesador entre los procesos.”
+
+Es apropiativo: el sistema puede quitarle el procesador a un proceso cuando se acaba su quantum. Los procesos que llegan durante un turno se agregan a la cola; si el proceso en ejecución sigue pendiente, vuelve al final después de ellos. El programa exige que el quantum sea mayor que cero. Está en alg_RoundRobin.py.
+
+Cómo calcula los tiempos
+Espera: tiempo que el proceso pasa esperando para empezar o para volver a ejecutarse.
+Retorno: tiempo total desde que llega hasta que termina.
+Para FCFS, SJF y Prioridad: espera = inicio − llegada; retorno = fin − llegada.
+Para Round Robin: retorno = finalización − llegada; espera = retorno − ráfaga.
+Al final, el programa calcula los promedios y genera una traza que muestra qué proceso se ejecuta y cuáles están esperando en cada instante.
+
+Preguntas que podrían hacerte
+¿Cuál es la diferencia principal entre SJF y FCFS?
+FCFS elige según quién llegó primero; SJF elige el proceso más corto entre los que ya están disponibles.
+
+¿Cuál es la diferencia principal entre Round Robin y los otros?
+Round Robin divide la ejecución en turnos y puede interrumpir un proceso al terminar su quantum. Los otros tres dejan que el proceso termine una vez que empezó.
+
+¿Qué pasa si no hay procesos listos?
+El tiempo avanza hasta la llegada del próximo proceso; el procesador queda inactivo mientras tanto.
+
+¿SJF o Prioridad pueden dejar esperando mucho a un proceso?
+Sí. Si siguen llegando procesos más cortos o con mayor prioridad, uno más largo o de menor prioridad podría esperar bastante. Esta implementación no incluye una regla de envejecimiento para aumentar la prioridad con el tiempo.
+
  explicacion de el recorrido real del código, no solo la teoría de cada algoritmo, incluyendo cómo los resultados alimentan la tabla, el Gantt y las fórmulas. Voy a seguir ese flujo en `main.py` y contrastarlo con las funciones `simular` de cada algoritmo para explicarte qué datos se calculan, cuándo y dónde se muestran.
 
 Read , lines 250 to 620
