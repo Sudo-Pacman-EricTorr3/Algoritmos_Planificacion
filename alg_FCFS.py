@@ -7,7 +7,6 @@ class FCFS:
         orden = sorted(procesos, key=lambda p: (p["arrival_time"], p["process"]))
         tiempo_actual = 0
         total_espera = 0
-        total_retorno = 0
         orden_ejecucion = []
 
         for proceso in orden:
@@ -23,7 +22,6 @@ class FCFS:
             retorno = fin - llegada
 
             total_espera += espera
-            total_retorno += retorno
             tiempo_actual = fin
             
             orden_ejecucion.append({
@@ -37,7 +35,7 @@ class FCFS:
             })
 
         promedio_espera = total_espera / len(orden)
-        promedio_retorno = total_retorno / len(orden)
+        formula_espera = " + ".join(str(item["waiting"]) for item in orden_ejecucion)
         orden_texto = " -> ".join(item["process"] for item in orden_ejecucion)
 
         resumen = [
@@ -52,8 +50,10 @@ class FCFS:
                 f"Espera: {item['waiting']:2d} | Retorno: {item['turnaround']:2d}"
             )
         resumen.append("-" * 60)
-        resumen.append(f"Tiempo promedio de espera: {promedio_espera:.2f}")
-        resumen.append(f"Tiempo promedio de retorno: {promedio_retorno:.2f}")
+        resumen.append(
+            f"Tiempo promedio de espera: ({formula_espera}) / {len(orden_ejecucion)} = "
+            f"{promedio_espera:.2f} ms"
+        )
 
         # --- SECCIÓN: TRAZA PASO A PASO (A PAPEL) ---
         resumen.append("\n" + "=" * 60)

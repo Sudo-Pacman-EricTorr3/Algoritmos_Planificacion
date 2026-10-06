@@ -25,6 +25,7 @@ class VistaPlanificacion(ctk.CTk):
 
         self.filas_entradas = []
         self._datos_guardados = []
+        self._algoritmo_actual = "FCFS"
 
         self._configurar_ui()
 
@@ -65,16 +66,32 @@ class VistaPlanificacion(ctk.CTk):
         )
         self.op_algoritmo.grid(row=0, column=3, padx=(0, 10), pady=(18, 8), sticky="ew")
 
+        self.label_tipo_algoritmo = ctk.CTkLabel(
+            self.frame_config,
+            text="Tipo:",
+            font=ctk.CTkFont(size=14, weight="bold"),
+        )
+        self.label_tipo_algoritmo.grid(row=0, column=4, padx=(10, 8), pady=(18, 8), sticky="w")
+
+        self.tipo_algoritmo_var = ctk.StringVar(value="No apropiativo")
+        self.op_tipo_algoritmo = ctk.CTkOptionMenu(
+            self.frame_config,
+            values=["No apropiativo"],
+            variable=self.tipo_algoritmo_var,
+            width=170,
+        )
+        self.op_tipo_algoritmo.grid(row=0, column=5, padx=(0, 10), pady=(18, 8), sticky="ew")
+
         self.label_quantum = ctk.CTkLabel(
             self.frame_config,
             text="Quantum (1-10):",
             font=ctk.CTkFont(size=14, weight="bold"),
         )
-        self.label_quantum.grid(row=0, column=4, padx=(10, 8), pady=(18, 8), sticky="w")
+        self.label_quantum.grid(row=0, column=6, padx=(10, 8), pady=(18, 8), sticky="w")
 
         self.entry_quantum = ctk.CTkEntry(self.frame_config, width=90)
         self.entry_quantum.insert(0, "2")
-        self.entry_quantum.grid(row=0, column=5, padx=(0, 12), pady=(18, 8), sticky="ew")
+        self.entry_quantum.grid(row=0, column=7, padx=(0, 12), pady=(18, 8), sticky="ew")
 
         self.frame_acciones_procesos = ctk.CTkFrame(self.frame_config, fg_color="transparent")
         self.frame_acciones_procesos.grid(row=1, column=0, columnspan=2, padx=(18, 0), pady=(4, 14), sticky="w")
@@ -108,6 +125,7 @@ class VistaPlanificacion(ctk.CTk):
         )
         self.btn_simular.grid(row=1, column=2, columnspan=2, padx=(8, 18), pady=(4, 14), sticky="w")
 
+        self._actualizar_tipo_algoritmo(self.algoritmo_var.get())
         self._actualizar_quantum(self.algoritmo_var.get())
 
         self.frame_tabla = ctk.CTkScrollableFrame(self, corner_radius=12, width=540, height=210)
@@ -290,7 +308,33 @@ class VistaPlanificacion(ctk.CTk):
             self.label_quantum.grid_remove()
             self.entry_quantum.grid_remove()
 
+    def _actualizar_tipo_algoritmo(self, algoritmo):
+        tipos_por_algoritmo = {
+            "FCFS": ["No apropiativo"],
+            "SJF": ["Apropiativo", "No apropiativo"],
+            "Priority": ["Apropiativo", "No apropiativo"],
+            "Round Robin": ["Apropiativo"],
+        }
+        tipos = tipos_por_algoritmo[algoritmo]
+
+        if len(tipos) == 1:
+            tipo_seleccionado = tipos[0]
+        elif self._algoritmo_actual not in ("SJF", "Priority"):
+            tipo_seleccionado = "Apropiativo"
+        else:
+            tipo_seleccionado = self.tipo_algoritmo_var.get()
+            if tipo_seleccionado not in tipos:
+                tipo_seleccionado = tipos[0]
+
+        self.op_tipo_algoritmo.configure(values=tipos)
+        self.tipo_algoritmo_var.set(tipo_seleccionado)
+        self.op_tipo_algoritmo.configure(
+            state="normal" if len(tipos) > 1 else "disabled"
+        )
+        self._algoritmo_actual = algoritmo
+
     def _on_algoritmo_cambiado(self, algoritmo):
+        self._actualizar_tipo_algoritmo(algoritmo)
         self._actualizar_quantum(algoritmo)
 
         if not self.filas_entradas:
@@ -364,7 +408,13 @@ class VistaPlanificacion(ctk.CTk):
         self._resultado_widget.insert("end", texto)
         self._resultado_widget.configure(state="disabled")
 
-    def _timeline_por_algoritmo(self, procesos, algoritmo, quantum=None):
+    def _timeline_por_algoritmo(
+        self,
+        procesos,
+        algoritmo,
+        quantum=None,
+        apropiativo=True,
+    ):
         if algoritmo == "FCFS":
             orden = sorted(procesos, key=lambda p: (p["arrival_time"], p["process"]))
             actual = 0
@@ -387,67 +437,10 @@ class VistaPlanificacion(ctk.CTk):
             return timeline
 
         if algoritmo == "SJF":
-            orden = sorted(procesos, key=lambda p: (p["arrival_time"], p["burst_time"], p["process"]))
-            actual = 0
-            cola = []
-            timeline = []
-            indice = 0
-            while indice < len(orden) or cola:
-                while indice < len(orden) and orden[indice]["arrival_time"] <= actual:
-                    cola.append(orden[indice])
-                    indice += 1
-                if not cola:
-                    actual = orden[indice]["arrival_time"]
-                    continue
-                proceso = min(cola, key=lambda p: (p["burst_time"], p["arrival_time"], p["process"]))
-                cola.remove(proceso)
-                inicio = actual
-                fin = actual + proceso["burst_time"]
-                timeline.append(
-                    {
-                        "process": proceso["process"],
-                        "arrival": proceso["arrival_time"],
-                        "burst": proceso["burst_time"],
-                        "start": inicio,
-                        "finish": fin,
-                        "waiting": max(0, inicio - proceso["arrival_time"]),
-                        "turnaround": fin - proceso["arrival_time"],
-                    }
-                )
-                actual = fin
-            return timeline
+            return SJF.generar_timeline(procesos, apropiativo)
 
         if algoritmo == "Priority":
-            orden = sorted(procesos, key=lambda p: (p["arrival_time"], p["priority"], p["process"]))
-            actual = 0
-            cola = []
-            timeline = []
-            indice = 0
-            while indice < len(orden) or cola:
-                while indice < len(orden) and orden[indice]["arrival_time"] <= actual:
-                    cola.append(orden[indice])
-                    indice += 1
-                if not cola:
-                    actual = orden[indice]["arrival_time"]
-                    continue
-                proceso = min(cola, key=lambda p: (p["priority"], p["arrival_time"], p["process"]))
-                cola.remove(proceso)
-                inicio = actual
-                fin = actual + proceso["burst_time"]
-                timeline.append(
-                    {
-                        "process": proceso["process"],
-                        "arrival": proceso["arrival_time"],
-                        "burst": proceso["burst_time"],
-                        "priority": proceso["priority"],
-                        "start": inicio,
-                        "finish": fin,
-                        "waiting": max(0, inicio - proceso["arrival_time"]),
-                        "turnaround": fin - proceso["arrival_time"],
-                    }
-                )
-                actual = fin
-            return timeline
+            return PriorityScheduler.generar_timeline(procesos, apropiativo)
 
         if algoritmo == "Round Robin":
             from collections import deque
@@ -759,7 +752,13 @@ class VistaPlanificacion(ctk.CTk):
                 )
                 return
 
-        gantt = self._timeline_por_algoritmo(procesos, algoritmo, quantum)
+        apropiativo = self.tipo_algoritmo_var.get() == "Apropiativo"
+        gantt = self._timeline_por_algoritmo(
+            procesos,
+            algoritmo,
+            quantum,
+            apropiativo,
+        )
         if gantt and max(item["finish"] for item in gantt) > MAX_DURACION_DIAGRAMA:
             messagebox.showwarning(
                 "Diagrama demasiado largo",
@@ -769,9 +768,9 @@ class VistaPlanificacion(ctk.CTk):
         if algoritmo == "FCFS":
             resultado = FCFS.simular(procesos)
         elif algoritmo == "SJF":
-            resultado = SJF.simular(procesos)
+            resultado = SJF.simular(procesos, apropiativo)
         elif algoritmo == "Priority":
-            resultado = PriorityScheduler.simular(procesos)
+            resultado = PriorityScheduler.simular(procesos, apropiativo)
         elif algoritmo == "Round Robin":
             resultado = RoundRobin.simular(procesos, quantum)
         else:
@@ -783,4 +782,3 @@ class VistaPlanificacion(ctk.CTk):
 if __name__ == "__main__":
     app = VistaPlanificacion()
     app.mainloop()
-

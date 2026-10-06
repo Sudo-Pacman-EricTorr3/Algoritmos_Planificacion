@@ -108,7 +108,7 @@ class RoundRobin:
                 )
 
         total_espera = sum(item["waiting"] for item in resultados)
-        total_retorno = sum(item["turnaround"] for item in resultados)
+        formula_espera = " + ".join(str(item["waiting"]) for item in resultados)
         orden_texto = " -> ".join(orden_ejecucion)
 
         resumen = [
@@ -123,8 +123,10 @@ class RoundRobin:
                 f"Espera: {item['waiting']:2d} | Retorno: {item['turnaround']:2d}"
             )
         resumen.append("-" * 60)
-        resumen.append(f"Tiempo promedio de espera: {total_espera / len(resultados):.2f}")
-        resumen.append(f"Tiempo promedio de retorno: {total_retorno / len(resultados):.2f}")
+        resumen.append(
+            f"Tiempo promedio de espera: ({formula_espera}) / {len(resultados)} = "
+            f"{total_espera / len(resultados):.2f} ms"
+        )
 
         # --- SECCIÓN: TRAZA PASO A PASO ---
         resumen.append("\n" + "=" * 60)
